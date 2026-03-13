@@ -36,6 +36,26 @@ function seededRandom(seed: string): number {
   return Math.abs(hash % 100) / 100;
 }
 
+export interface DayHistory {
+  date: string;
+  day: string;
+  temp: number;
+  humidity: number;
+  windSpeed: number;
+  description: string;
+  icon: string;
+}
+
+function seededRandomWithOffset(seed: string, offset: number): number {
+  let hash = 0;
+  const s = seed + String(offset);
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash) + s.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash % 100) / 100;
+}
+
 export function getMockWeather(city: string, state?: string): WeatherData {
   const seed = city + (state || '');
   const r = seededRandom(seed);
@@ -52,4 +72,30 @@ export function getMockWeather(city: string, state?: string): WeatherData {
     windSpeed: Math.round(5 + r * 20),
     pressure: Math.round(1005 + r * 20),
   };
+}
+
+export function get7DayHistory(city: string, state?: string): DayHistory[] {
+  const seed = city + (state || '');
+  const today = new Date();
+  const days: DayHistory[] = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const r2 = seededRandomWithOffset(seed + dateStr, i);
+    const condition = weatherConditions[Math.floor(r2 * weatherConditions.length)];
+
+    days.push({
+      date: d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }),
+      day: d.toLocaleDateString('en-NG', { weekday: 'short' }),
+      temp: Math.round(22 + r2 * 16),
+      humidity: Math.round(35 + r2 * 55),
+      windSpeed: Math.round(4 + r2 * 22),
+      description: condition.description,
+      icon: condition.icon,
+    });
+  }
+
+  return days;
 }
