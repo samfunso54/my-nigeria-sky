@@ -3,17 +3,17 @@ import { motion } from 'framer-motion';
 import heroImg from '@/assets/hero-postlogin.jpg';
 import { Navbar } from '@/components/Navbar';
 import { WeatherCard } from '@/components/WeatherCard';
+import { WeatherHistory } from '@/components/WeatherHistory';
 import { StateSearch } from '@/components/StateSearch';
-import { getMockWeather } from '@/lib/weatherService';
+import { getMockWeather, get7DayHistory } from '@/lib/weatherService';
 import { getStateByName } from '@/lib/nigerianStates';
 
 export default function Dashboard() {
   const [selectedState, setSelectedState] = useState('Lagos');
   const stateData = getStateByName(selectedState);
-  const weather = getMockWeather(
-    stateData?.capital || selectedState,
-    selectedState
-  );
+  const capital = stateData?.capital || selectedState;
+  const weather = getMockWeather(capital, selectedState);
+  const history = get7DayHistory(capital, selectedState);
 
   return (
     <div className="min-h-screen relative">
@@ -35,8 +35,12 @@ export default function Dashboard() {
             <StateSearch value={selectedState} onChange={setSelectedState} />
           </motion.div>
 
-          <motion.div key={selectedState} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-md mx-auto">
+          <motion.div key={selectedState} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-md mx-auto mb-8">
             <WeatherCard weather={weather} showTime />
+          </motion.div>
+
+          <motion.div key={selectedState + '-history'} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
+            <WeatherHistory history={history} delay={0.2} />
           </motion.div>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mt-8 glass-panel rounded-lg p-4 text-center">

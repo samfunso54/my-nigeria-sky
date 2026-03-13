@@ -82,8 +82,8 @@ export function get7DayHistory(city: string, state?: string): DayHistory[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const r = seededRandomWithOffset(seed, d.toISOString().split('T')[0].hashCode ?? i);
-    const r2 = seededRandomWithOffset(seed + d.toISOString().split('T')[0], i);
+    const dateStr = d.toISOString().split('T')[0];
+    const r2 = seededRandomWithOffset(seed + dateStr, i);
     const condition = weatherConditions[Math.floor(r2 * weatherConditions.length)];
 
     days.push({
