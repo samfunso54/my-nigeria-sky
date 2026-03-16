@@ -30,7 +30,7 @@ export function WeatherHistory({ history, delay = 0 }: WeatherHistoryProps) {
       className="glass-panel rounded-lg p-5"
     >
       <h3 className="font-display text-lg font-bold text-primary-foreground mb-4">
-        Past 7 Days
+        5-Day Forecast
       </h3>
 
       <Tabs defaultValue="chart" className="w-full">
