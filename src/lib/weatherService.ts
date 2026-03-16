@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface WeatherData {
   city: string;
   state?: string;
@@ -10,32 +12,6 @@ export interface WeatherData {
   pressure: number;
 }
 
-// Mock weather data for demo - will be replaced with real API
-const weatherConditions = [
-  { description: "Partly Cloudy", icon: "⛅" },
-  { description: "Sunny", icon: "☀️" },
-  { description: "Light Rain", icon: "🌦️" },
-  { description: "Thunderstorm", icon: "⛈️" },
-  { description: "Overcast", icon: "☁️" },
-  { description: "Clear Sky", icon: "🌤️" },
-];
-
-function seededRandom(seed: string): number {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  // Use date to make it change daily
-  const day = new Date().toISOString().split('T')[0];
-  for (let i = 0; i < day.length; i++) {
-    hash = ((hash << 5) - hash) + day.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash % 100) / 100;
-}
-
 export interface DayHistory {
   date: string;
   day: string;
@@ -46,56 +22,73 @@ export interface DayHistory {
   icon: string;
 }
 
-function seededRandomWithOffset(seed: string, offset: number): number {
-  let hash = 0;
-  const s = seed + String(offset);
-  for (let i = 0; i < s.length; i++) {
-    hash = ((hash << 5) - hash) + s.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash % 100) / 100;
+// Map OWM icon codes to emoji
+function owmIconToEmoji(iconCode: string): string {
+  const map: Record<string, string> = {
+    "01d": "☀️", "01n": "🌙",
+    "02d": "⛅", "02n": "☁️",
+    "03d": "☁️", "03n": "☁️",
+    "04d": "☁️", "04n": "☁️",
+    "09d": "🌧️", "09n": "🌧️",
+    "10d": "🌦️", "10n": "🌧️",
+    "11d": "⛈️", "11n": "⛈️",
+    "13d": "❄️", "13n": "❄️",
+    "50d": "🌫️", "50n": "🌫️",
+  };
+  return map[iconCode] || "🌤️";
 }
 
-export function getMockWeather(city: string, state?: string): WeatherData {
-  const seed = city + (state || '');
-  const r = seededRandom(seed);
-  const condition = weatherConditions[Math.floor(r * weatherConditions.length)];
-  
-  return {
+export interface WeatherResult {
+  weather: WeatherData;
+  forecast: DayHistory[];
+}
+
+export async function fetchWeather(lat: number, lon: number, city: string, state?: string): Promise<WeatherResult> {
+  const { data, error } = await supabase.functions.invoke("get-weather", {
+    body: { lat, lon },
+  });
+
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+
+  const current = data.current;
+  const forecastList = data.forecast?.list || [];
+
+  const weather: WeatherData = {
     city,
     state,
-    temp: Math.round(24 + r * 14),
-    feelsLike: Math.round(25 + r * 13),
-    humidity: Math.round(40 + r * 50),
-    description: condition.description,
-    icon: condition.icon,
-    windSpeed: Math.round(5 + r * 20),
-    pressure: Math.round(1005 + r * 20),
+    temp: Math.round(current.main.temp),
+    feelsLike: Math.round(current.main.feels_like),
+    humidity: current.main.humidity,
+    description: current.weather[0]?.description || "N/A",
+    icon: owmIconToEmoji(current.weather[0]?.icon || "01d"),
+    windSpeed: Math.round(current.wind.speed * 3.6), // m/s to km/h
+    pressure: current.main.pressure,
   };
-}
 
-export function get7DayHistory(city: string, state?: string): DayHistory[] {
-  const seed = city + (state || '');
-  const today = new Date();
-  const days: DayHistory[] = [];
-
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    const r2 = seededRandomWithOffset(seed + dateStr, i);
-    const condition = weatherConditions[Math.floor(r2 * weatherConditions.length)];
-
-    days.push({
-      date: d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }),
-      day: d.toLocaleDateString('en-NG', { weekday: 'short' }),
-      temp: Math.round(22 + r2 * 16),
-      humidity: Math.round(35 + r2 * 55),
-      windSpeed: Math.round(4 + r2 * 22),
-      description: condition.description,
-      icon: condition.icon,
-    });
+  // Group forecast by day, pick midday entry per day
+  const dayMap = new Map<string, typeof forecastList[0]>();
+  for (const entry of forecastList) {
+    const dateStr = entry.dt_txt.split(" ")[0];
+    const hour = parseInt(entry.dt_txt.split(" ")[1].split(":")[0]);
+    const existing = dayMap.get(dateStr);
+    if (!existing || Math.abs(hour - 12) < Math.abs(parseInt(existing.dt_txt.split(" ")[1].split(":")[0]) - 12)) {
+      dayMap.set(dateStr, entry);
+    }
   }
 
-  return days;
+  const forecast: DayHistory[] = Array.from(dayMap.values()).slice(0, 5).map((entry) => {
+    const d = new Date(entry.dt * 1000);
+    return {
+      date: d.toLocaleDateString("en-NG", { day: "numeric", month: "short" }),
+      day: d.toLocaleDateString("en-NG", { weekday: "short" }),
+      temp: Math.round(entry.main.temp),
+      humidity: entry.main.humidity,
+      windSpeed: Math.round(entry.wind.speed * 3.6),
+      description: entry.weather[0]?.description || "",
+      icon: owmIconToEmoji(entry.weather[0]?.icon || "01d"),
+    };
+  });
+
+  return { weather, forecast };
 }
