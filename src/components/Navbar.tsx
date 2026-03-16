@@ -13,12 +13,12 @@ export function Navbar({ onAuthClick }: NavbarProps) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-panel">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <CloudSun className="w-7 h-7 text-secondary" />
           <span className="font-display text-xl font-bold text-primary-foreground">
             WeatherNG
           </span>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-3">
           {user ? (
