@@ -43,7 +43,7 @@ export default function Dashboard() {
       <Navbar />
 
       <div className="relative z-10 pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-3xl">
+        <div className="container mx-auto max-w-4xl">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
             <h1 className="font-display text-3xl sm:text-4xl font-bold text-primary-foreground mb-2">Your Dashboard</h1>
             <p className="text-primary-foreground/70 font-body">Search any place in Nigeria to view current weather</p>
