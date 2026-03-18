@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import heroImg from '@/assets/hero-postlogin.jpg';
 import { Navbar } from '@/components/Navbar';
@@ -6,20 +6,47 @@ import { WeatherCard } from '@/components/WeatherCard';
 import { WeatherHistory } from '@/components/WeatherHistory';
 import { StateSearch, type PlaceSelection } from '@/components/StateSearch';
 import { fetchWeather, type WeatherData, type DayHistory } from '@/lib/weatherService';
-import { getStateByName } from '@/lib/nigerianStates';
+import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
+const DEFAULT_PLACE: PlaceSelection = {
+  name: 'Lagos',
+  state: 'Lagos',
+  lat: 6.524,
+  lon: 3.379,
+};
+
 export default function Dashboard() {
-  const [selectedPlace, setSelectedPlace] = useState<PlaceSelection>({
-    name: 'Lagos',
-    state: 'Lagos',
-    lat: 6.524,
-    lon: 3.379,
-  });
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSelection>(DEFAULT_PLACE);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [forecast, setForecast] = useState<DayHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-detect location on mount
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude: lat, longitude: lon } = position.coords;
+          const { data, error } = await supabase.functions.invoke('get-weather', {
+            body: { action: 'reverse_geocode', lat, lon },
+          });
+          if (!error && data?.name) {
+            setSelectedPlace({
+              name: data.name,
+              state: data.state || '',
+              lat: data.lat || lat,
+              lon: data.lon || lon,
+            });
+          }
+        } catch {}
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  }, []);
 
   useEffect(() => {
     setLoading(true);
