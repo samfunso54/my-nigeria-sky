@@ -1,23 +1,52 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { nigerianStates } from '@/lib/nigerianStates';
-import { Search, MapPin } from 'lucide-react';
+import { searchPlaces, type GeoResult } from '@/lib/geocode';
+import { Search, MapPin, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-interface StateSearchProps {
-  value: string;
-  onChange: (value: string) => void;
+export interface PlaceSelection {
+  name: string;
+  state: string;
+  lat: number;
+  lon: number;
 }
 
-export function StateSearch({ value, onChange }: StateSearchProps) {
+interface StateSearchProps {
+  onSelect: (place: PlaceSelection) => void;
+}
+
+export function StateSearch({ onSelect }: StateSearchProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [apiResults, setApiResults] = useState<GeoResult[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const filtered = nigerianStates.filter(
-    (s) =>
-      s.name.toLowerCase().includes(query.toLowerCase()) ||
-      s.capital.toLowerCase().includes(query.toLowerCase())
-  );
+  // Local filter on states (instant)
+  const localMatches = query.length > 0
+    ? nigerianStates.filter(
+        (s) =>
+          s.name.toLowerCase().includes(query.toLowerCase()) ||
+          s.capital.toLowerCase().includes(query.toLowerCase())
+      )
+    : [];
+
+  // Debounced API search for places beyond states
+  const searchApi = useCallback((q: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (q.length < 2) {
+      setApiResults([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      const results = await searchPlaces(q);
+      setApiResults(results);
+      setLoading(false);
+    }, 400);
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -29,42 +58,74 @@ export function StateSearch({ value, onChange }: StateSearchProps) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Merge local state matches and API results, deduplicate by name
+  const seen = new Set<string>();
+  const combinedResults: PlaceSelection[] = [];
+
+  for (const s of localMatches) {
+    const key = s.name.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      combinedResults.push({ name: s.name, state: s.name, lat: s.lat, lon: s.lon });
+    }
+  }
+
+  for (const r of apiResults) {
+    const key = r.name.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      combinedResults.push(r);
+    }
+  }
+
   return (
     <div ref={wrapperRef} className="relative w-full max-w-md mx-auto">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search any Nigerian state or capital…"
+          placeholder="Search any place in Nigeria…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
+            searchApi(e.target.value);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => query.length > 0 && setOpen(true)}
           className="pl-10 bg-card border-border font-body h-11 text-sm"
         />
       </div>
 
       {open && query.length > 0 && (
         <div className="absolute z-50 mt-1 w-full rounded-md bg-popover border border-border shadow-lg max-h-60 overflow-y-auto">
-          {filtered.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-muted-foreground">No states found</p>
+          {combinedResults.length === 0 && !loading ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">No places found</p>
           ) : (
-            filtered.map((state) => (
-              <button
-                key={state.name}
-                onClick={() => {
-                  onChange(state.name);
-                  setQuery('');
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                <MapPin className="w-3.5 h-3.5 text-secondary shrink-0" />
-                <span className="font-medium text-foreground">{state.name}</span>
-                <span className="text-muted-foreground">— {state.capital}</span>
-              </button>
-            ))
+            <>
+              {combinedResults.map((place, i) => (
+                <button
+                  key={`${place.name}-${place.lat}-${i}`}
+                  onClick={() => {
+                    onSelect(place);
+                    setQuery('');
+                    setOpen(false);
+                    setApiResults([]);
+                  }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-secondary shrink-0" />
+                  <span className="font-medium text-foreground">{place.name}</span>
+                  {place.state && place.state !== place.name && (
+                    <span className="text-muted-foreground">— {place.state}</span>
+                  )}
+                </button>
+              ))}
+              {loading && (
+                <div className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Searching more places…
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
