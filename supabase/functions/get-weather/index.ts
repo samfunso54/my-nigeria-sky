@@ -44,7 +44,6 @@ serve(async (req) => {
 
       const geoData = await geoRes.json();
 
-      // Filter to only Nigerian results and deduplicate
       const seen = new Set<string>();
       const results = geoData
         .filter((r: any) => r.country === "NG")
@@ -65,6 +64,42 @@ serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Reverse geocoding: lat/lon → place name
+    if (action === "reverse_geocode") {
+      const { lat, lon } = body;
+      if (!lat || !lon) {
+        return new Response(JSON.stringify({ error: "lat and lon required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const revRes = await fetch(
+        `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
+      );
+
+      if (!revRes.ok) {
+        const err = await revRes.text();
+        throw new Error(`Reverse geocode failed [${revRes.status}]: ${err}`);
+      }
+
+      const revData = await revRes.json();
+      const place = revData[0];
+
+      return new Response(
+        JSON.stringify({
+          name: place?.name || "Unknown",
+          state: place?.state || "",
+          lat: place?.lat || lat,
+          lon: place?.lon || lon,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Default: fetch weather by lat/lon
