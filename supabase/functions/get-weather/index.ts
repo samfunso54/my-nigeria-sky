@@ -20,7 +20,55 @@ serve(async (req) => {
   }
 
   try {
-    const { lat, lon } = await req.json();
+    const body = await req.json();
+    const { action } = body;
+
+    // Geocoding action: search for places in Nigeria
+    if (action === "geocode") {
+      const { query } = body;
+      if (!query || query.length < 2) {
+        return new Response(JSON.stringify({ results: [] }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const geoRes = await fetch(
+        `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)},NG&limit=10&appid=${API_KEY}`
+      );
+
+      if (!geoRes.ok) {
+        const err = await geoRes.text();
+        throw new Error(`Geocoding failed [${geoRes.status}]: ${err}`);
+      }
+
+      const geoData = await geoRes.json();
+
+      // Filter to only Nigerian results and deduplicate
+      const seen = new Set<string>();
+      const results = geoData
+        .filter((r: any) => r.country === "NG")
+        .filter((r: any) => {
+          const key = `${r.name}-${r.state || ""}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .map((r: any) => ({
+          name: r.name,
+          state: r.state || "",
+          lat: r.lat,
+          lon: r.lon,
+        }));
+
+      return new Response(JSON.stringify({ results }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Default: fetch weather by lat/lon
+    const { lat, lon } = body;
 
     if (!lat || !lon) {
       return new Response(JSON.stringify({ error: "lat and lon are required" }), {
@@ -29,7 +77,6 @@ serve(async (req) => {
       });
     }
 
-    // Fetch current weather and 5-day forecast in parallel
     const [currentRes, forecastRes] = await Promise.all([
       fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
