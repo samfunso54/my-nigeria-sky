@@ -67,9 +67,22 @@ export default function Dashboard() {
 
           {!loading && weather && (
             <>
-              <motion.div key={selectedPlace.name} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-md mx-auto mb-8">
-                <WeatherCard weather={weather} showTime />
-              </motion.div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <motion.div key={selectedPlace.name} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+                  <WeatherCard weather={weather} showTime />
+                </motion.div>
+
+                <motion.div key={selectedPlace.name + '-map'} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="rounded-lg overflow-hidden border border-border shadow-md min-h-[280px]">
+                  <iframe
+                    title="Location map"
+                    width="100%"
+                    height="100%"
+                    style={{ minHeight: 280, border: 0 }}
+                    loading="lazy"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedPlace.lon - 0.05}%2C${selectedPlace.lat - 0.05}%2C${selectedPlace.lon + 0.05}%2C${selectedPlace.lat + 0.05}&layer=mapnik&marker=${selectedPlace.lat}%2C${selectedPlace.lon}`}
+                  />
+                </motion.div>
+              </div>
 
               {forecast.length > 0 && (
                 <motion.div key={selectedPlace.name + '-forecast'} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
