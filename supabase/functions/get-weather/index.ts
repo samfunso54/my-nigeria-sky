@@ -23,7 +23,7 @@ serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
-    // Geocoding action: search for places in Nigeria
+    // Geocoding action: search for places in Nigeria using GeoNames
     if (action === "geocode") {
       const { query } = body;
       if (!query || query.length < 2) {
@@ -33,31 +33,42 @@ serve(async (req) => {
         });
       }
 
+      const GEONAMES_USERNAME = Deno.env.get("GEONAMES_USERNAME");
+      if (!GEONAMES_USERNAME) {
+        return new Response(JSON.stringify({ error: "GeoNames username not configured" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const geoRes = await fetch(
-        `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)},NG&limit=10&appid=${API_KEY}`
+        `http://api.geonames.org/searchJSON?q=${encodeURIComponent(query)}&country=NG&maxRows=15&featureClass=P&orderby=relevance&username=${GEONAMES_USERNAME}`
       );
 
       if (!geoRes.ok) {
         const err = await geoRes.text();
-        throw new Error(`Geocoding failed [${geoRes.status}]: ${err}`);
+        throw new Error(`GeoNames search failed [${geoRes.status}]: ${err}`);
       }
 
       const geoData = await geoRes.json();
 
+      if (geoData.status) {
+        throw new Error(`GeoNames error: ${geoData.status.message}`);
+      }
+
       const seen = new Set<string>();
-      const results = geoData
-        .filter((r: any) => r.country === "NG")
+      const results = (geoData.geonames || [])
         .filter((r: any) => {
-          const key = `${r.name}-${r.state || ""}`;
+          const key = `${r.name}-${r.adminName1 || ""}`;
           if (seen.has(key)) return false;
           seen.add(key);
           return true;
         })
         .map((r: any) => ({
           name: r.name,
-          state: r.state || "",
-          lat: r.lat,
-          lon: r.lon,
+          state: r.adminName1 || "",
+          lat: parseFloat(r.lat),
+          lon: parseFloat(r.lng),
         }));
 
       return new Response(JSON.stringify({ results }), {
