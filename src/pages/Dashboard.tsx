@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import heroImg from '@/assets/hero-postlogin.jpg';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from '@/components/Navbar';
 import { WeatherCard } from '@/components/WeatherCard';
 import { WeatherHistory } from '@/components/WeatherHistory';
 import { StateSearch, type PlaceSelection } from '@/components/StateSearch';
+import { useRotatingBackground } from '@/hooks/useRotatingBackground';
 import { fetchWeather, type WeatherData, type DayHistory } from '@/lib/weatherService';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
@@ -22,8 +22,8 @@ export default function Dashboard() {
   const [forecast, setForecast] = useState<DayHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { bg, next } = useRotatingBackground();
 
-  // Auto-detect location on mount
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -60,10 +60,26 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, [selectedPlace]);
 
+  const handlePlaceSelect = (place: PlaceSelection) => {
+    setSelectedPlace(place);
+    next();
+  };
+
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative" onClick={next}>
       <div className="fixed inset-0 z-0">
-        <img src={heroImg} alt="Abuja landscape" className="w-full h-full object-cover transition-opacity duration-700" />
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={bg}
+            src={bg}
+            alt="Nigerian landscape"
+            className="w-full h-full object-cover absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+          />
+        </AnimatePresence>
         <div className="hero-overlay absolute inset-0" />
       </div>
 
@@ -73,11 +89,11 @@ export default function Dashboard() {
         <div className="container mx-auto max-w-4xl">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
             <h1 className="font-display text-3xl sm:text-4xl font-bold text-primary-foreground mb-2">Your Dashboard</h1>
-            <p className="text-primary-foreground/70 font-body">Search any place in Nigeria to view current weather</p>
+            <p className="text-primary-foreground/70 font-body">Search any town or village in Nigeria</p>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8">
-            <StateSearch onSelect={setSelectedPlace} />
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8" onClick={(e) => e.stopPropagation()}>
+            <StateSearch onSelect={handlePlaceSelect} />
           </motion.div>
 
           {loading && (
