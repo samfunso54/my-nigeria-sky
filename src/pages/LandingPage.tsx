@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import heroImg from '@/assets/hero-prelogin.jpg';
+import { motion, AnimatePresence } from 'framer-motion';
 import { WeatherCard } from '@/components/WeatherCard';
 import { AuthForm } from '@/components/AuthForm';
 import { Navbar } from '@/components/Navbar';
+import { useRotatingBackground } from '@/hooks/useRotatingBackground';
 import { fetchWeather, type WeatherData } from '@/lib/weatherService';
 import { CloudSun, Shield, Bell, Globe, Loader2 } from 'lucide-react';
 
@@ -11,6 +11,7 @@ export default function LandingPage() {
   const [showAuth, setShowAuth] = useState(false);
   const [lagosWeather, setLagosWeather] = useState<WeatherData | null>(null);
   const [abujaWeather, setAbujaWeather] = useState<WeatherData | null>(null);
+  const { bg, next } = useRotatingBackground();
 
   useEffect(() => {
     fetchWeather(6.45, 3.39, 'Lagos', 'Lagos').then(r => setLagosWeather(r.weather)).catch(() => {});
@@ -18,9 +19,20 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative" onClick={next}>
       <div className="fixed inset-0 z-0">
-        <img src={heroImg} alt="Lagos skyline at sunset" className="w-full h-full object-cover" />
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={bg}
+            src={bg}
+            alt="Nigerian landscape"
+            className="w-full h-full object-cover absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+          />
+        </AnimatePresence>
         <div className="hero-overlay absolute inset-0" />
       </div>
 
@@ -41,7 +53,7 @@ export default function LandingPage() {
           {showAuth ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-12">
               <AuthForm onSuccess={() => setShowAuth(false)} />
-              <button onClick={() => setShowAuth(false)} className="block mx-auto mt-4 text-sm text-primary-foreground/60 hover:text-primary-foreground">
+              <button onClick={(e) => { e.stopPropagation(); setShowAuth(false); }} className="block mx-auto mt-4 text-sm text-primary-foreground/60 hover:text-primary-foreground">
                 ← Back to weather
               </button>
             </motion.div>
