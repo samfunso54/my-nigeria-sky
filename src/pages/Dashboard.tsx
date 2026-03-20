@@ -6,7 +6,6 @@ import { WeatherHistory } from '@/components/WeatherHistory';
 import { StateSearch, type PlaceSelection } from '@/components/StateSearch';
 import { useRotatingBackground } from '@/hooks/useRotatingBackground';
 import { fetchWeather, type WeatherData, type DayHistory } from '@/lib/weatherService';
-import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
 const DEFAULT_PLACE: PlaceSelection = {
