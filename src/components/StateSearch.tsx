@@ -57,50 +57,6 @@ export function StateSearch({ onSelect }: StateSearchProps) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleLocateMe = useCallback(async () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
-      return;
-    }
-
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude: lat, longitude: lon } = position.coords;
-          const { data, error } = await supabase.functions.invoke('get-weather', {
-            body: { action: 'reverse_geocode', lat, lon },
-          });
-
-          if (error) throw error;
-
-          onSelect({
-            name: data.name || 'Your Location',
-            state: data.state || '',
-            lat: data.lat || lat,
-            lon: data.lon || lon,
-          });
-          setQuery('');
-          setOpen(false);
-          toast.success(`📍 Detected: ${data.name || 'Your Location'}`);
-        } catch (err) {
-          console.error('Reverse geocode error:', err);
-          toast.error('Could not determine your location name');
-        } finally {
-          setLocating(false);
-        }
-      },
-      (err) => {
-        setLocating(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          toast.error('Location access denied. Please allow location in your browser settings.');
-        } else {
-          toast.error('Could not get your location');
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }, [onSelect]);
 
   const seen = new Set<string>();
   const combinedResults: PlaceSelection[] = [];
