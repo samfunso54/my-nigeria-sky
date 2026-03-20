@@ -20,7 +20,6 @@ export function StateSearch({ onSelect }: StateSearchProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [locating, setLocating] = useState(false);
   const [apiResults, setApiResults] = useState<GeoResult[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
