@@ -24,29 +24,6 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const { bg, next } = useRotatingBackground();
 
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude: lat, longitude: lon } = position.coords;
-          const { data, error } = await supabase.functions.invoke('get-weather', {
-            body: { action: 'reverse_geocode', lat, lon },
-          });
-          if (!error && data?.name) {
-            setSelectedPlace({
-              name: data.name,
-              state: data.state || '',
-              lat: data.lat || lat,
-              lon: data.lon || lon,
-            });
-          }
-        } catch {}
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
-  }, []);
 
   useEffect(() => {
     setLoading(true);
