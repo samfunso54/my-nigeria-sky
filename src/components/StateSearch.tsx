@@ -3,8 +3,6 @@ import { nigerianStates } from '@/lib/nigerianStates';
 import { searchPlaces, type GeoResult } from '@/lib/geocode';
 import { Search, MapPin, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export interface PlaceSelection {
