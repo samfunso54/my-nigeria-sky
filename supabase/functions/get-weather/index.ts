@@ -33,42 +33,35 @@ serve(async (req) => {
         });
       }
 
-      const GEONAMES_USERNAME = Deno.env.get("GEONAMES_USERNAME");
-      if (!GEONAMES_USERNAME) {
-        return new Response(JSON.stringify({ error: "GeoNames username not configured" }), {
-          status: 500,
+      const nomRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=NG&format=json&limit=15&addressdetails=1`,
+        { headers: { "User-Agent": "WeatherNG/1.0 (lovable.app)" } }
+      );
+
+      if (!nomRes.ok) {
+        const err = await nomRes.text();
+        console.error(`Nominatim failed [${nomRes.status}]: ${err}`);
+        return new Response(JSON.stringify({ results: [] }), {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const geoRes = await fetch(
-        `http://api.geonames.org/searchJSON?q=${encodeURIComponent(query)}&country=NG&maxRows=15&featureClass=P&orderby=relevance&username=${GEONAMES_USERNAME}`
-      );
-
-      if (!geoRes.ok) {
-        const err = await geoRes.text();
-        throw new Error(`GeoNames search failed [${geoRes.status}]: ${err}`);
-      }
-
-      const geoData = await geoRes.json();
-
-      if (geoData.status) {
-        throw new Error(`GeoNames error: ${geoData.status.message}`);
-      }
+      const nomData = await nomRes.json();
 
       const seen = new Set<string>();
-      const results = (geoData.geonames || [])
+      const results = (nomData || [])
         .filter((r: any) => {
-          const key = `${r.name}-${r.adminName1 || ""}`;
+          const key = `${r.display_name}`;
           if (seen.has(key)) return false;
           seen.add(key);
           return true;
         })
         .map((r: any) => ({
-          name: r.name,
-          state: r.adminName1 || "",
+          name: r.display_name?.split(",")[0]?.trim() || r.name || "Unknown",
+          state: r.address?.state || "",
           lat: parseFloat(r.lat),
-          lon: parseFloat(r.lng),
+          lon: parseFloat(r.lon),
         }));
 
       return new Response(JSON.stringify({ results }), {
