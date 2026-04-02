@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { CloudSun, LogOut, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+
 
 interface NavbarProps {
   onAuthClick?: () => void;
@@ -13,12 +13,12 @@ export function Navbar({ onAuthClick }: NavbarProps) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-panel">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+        <a href="https://my-nigeria-sky.vercel.app" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <CloudSun className="w-7 h-7 text-secondary" />
           <span className="font-display text-xl font-bold text-primary-foreground">
             WeatherNG
           </span>
-        </Link>
+        </a>
 
         <div className="flex items-center gap-3">
           {user ? (
