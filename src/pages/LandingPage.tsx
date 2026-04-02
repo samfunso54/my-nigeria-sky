@@ -42,8 +42,8 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-5xl">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="text-center mb-12">
             <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold text-primary-foreground mb-4 leading-tight">
-              Nigeria's Weather,{' '}
-              <span className="text-secondary">Beautifully</span>
+              The forecast for Nigeria,{' '}
+              <span className="text-secondary">reimagined with aesthetic precision</span>
             </h1>
             <p className="text-lg sm:text-xl text-primary-foreground/80 font-body max-w-2xl mx-auto">
               Real-time forecasts for all 36 states and FCT. Stay informed, stay prepared.
