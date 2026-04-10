@@ -106,6 +106,65 @@ serve(async (req) => {
       );
     }
 
+    // Location image: fetch from Wikipedia
+    if (action === "location_image") {
+      const { place } = body;
+      if (!place) {
+        return new Response(JSON.stringify({ image_url: null }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Try Wikipedia page summary for an image
+      const queries = [`${place} Nigeria`, place];
+      let imageUrl: string | null = null;
+
+      for (const q of queries) {
+        if (imageUrl) break;
+        try {
+          const wikiRes = await fetch(
+            `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`,
+            { headers: { "User-Agent": "WeatherNG/1.0 (lovable.app)" } }
+          );
+          if (wikiRes.ok) {
+            const wikiData = await wikiRes.json();
+            if (wikiData.thumbnail?.source) {
+              // Get a higher-res version by replacing size in URL
+              imageUrl = wikiData.originalimage?.source || wikiData.thumbnail.source;
+            }
+          }
+        } catch (e) {
+          console.error("Wikipedia fetch error:", e);
+        }
+      }
+
+      // Fallback: try Wikimedia Commons search
+      if (!imageUrl) {
+        try {
+          const commonsRes = await fetch(
+            `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(place + " Nigeria")}&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json`,
+            { headers: { "User-Agent": "WeatherNG/1.0 (lovable.app)" } }
+          );
+          if (commonsRes.ok) {
+            const commonsData = await commonsRes.json();
+            const pages = commonsData?.query?.pages;
+            if (pages) {
+              const firstPage = Object.values(pages)[0] as any;
+              imageUrl = firstPage?.imageinfo?.[0]?.thumburl || firstPage?.imageinfo?.[0]?.url || null;
+            }
+          }
+        } catch (e) {
+          console.error("Commons fetch error:", e);
+        }
+      }
+
+      return new Response(JSON.stringify({ image_url: imageUrl }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Default: fetch weather by lat/lon
     const { lat, lon } = body;
 
