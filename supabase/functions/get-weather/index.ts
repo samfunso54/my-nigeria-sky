@@ -106,6 +106,77 @@ serve(async (req) => {
       );
     }
 
+    // Location image: fetch from Wikipedia
+    if (action === "location_image") {
+      const { place } = body;
+      if (!place) {
+        return new Response(JSON.stringify({ image_url: null }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Try Wikipedia search API first to find the right article title
+      const queries = [place, `${place} Nigeria`, `${place} city`];
+      let imageUrl: string | null = null;
+
+      for (const q of queries) {
+        if (imageUrl) break;
+        try {
+          // Use Wikipedia search to find the best matching article
+          const searchRes = await fetch(
+            `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=3&format=json`,
+            { headers: { "User-Agent": "WeatherNG/1.0 (lovable.app)" } }
+          );
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            const results = searchData?.query?.search || [];
+            for (const result of results) {
+              if (imageUrl) break;
+              const title = result.title;
+              const summaryRes = await fetch(
+                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+                { headers: { "User-Agent": "WeatherNG/1.0 (lovable.app)" } }
+              );
+              if (summaryRes.ok) {
+                const summaryData = await summaryRes.json();
+                if (summaryData.thumbnail?.source) {
+                  imageUrl = summaryData.originalimage?.source || summaryData.thumbnail.source;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Wikipedia search error:", e);
+        }
+      }
+
+      // Fallback: try Wikimedia Commons search
+      if (!imageUrl) {
+        try {
+          const commonsRes = await fetch(
+            `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(place + " Nigeria")}&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json`,
+            { headers: { "User-Agent": "WeatherNG/1.0 (lovable.app)" } }
+          );
+          if (commonsRes.ok) {
+            const commonsData = await commonsRes.json();
+            const pages = commonsData?.query?.pages;
+            if (pages) {
+              const firstPage = Object.values(pages)[0] as any;
+              imageUrl = firstPage?.imageinfo?.[0]?.thumburl || firstPage?.imageinfo?.[0]?.url || null;
+            }
+          }
+        } catch (e) {
+          console.error("Commons fetch error:", e);
+        }
+      }
+
+      return new Response(JSON.stringify({ image_url: imageUrl }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Default: fetch weather by lat/lon
     const { lat, lon } = body;
 

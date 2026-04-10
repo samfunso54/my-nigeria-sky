@@ -6,6 +6,7 @@ import { WeatherHistory } from '@/components/WeatherHistory';
 import { StateSearch, type PlaceSelection } from '@/components/StateSearch';
 import { useRotatingBackground } from '@/hooks/useRotatingBackground';
 import { fetchWeather, type WeatherData, type DayHistory } from '@/lib/weatherService';
+import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
 const DEFAULT_PLACE: PlaceSelection = {
@@ -21,8 +22,8 @@ export default function Dashboard() {
   const [forecast, setForecast] = useState<DayHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [locationImage, setLocationImage] = useState<string | null>(null);
   const { bg, next } = useRotatingBackground();
-
 
   useEffect(() => {
     setLoading(true);
@@ -34,6 +35,18 @@ export default function Dashboard() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  }, [selectedPlace]);
+
+  // Fetch location image from Wikipedia
+  useEffect(() => {
+    setLocationImage(null);
+    supabase.functions.invoke("get-weather", {
+      body: { action: "location_image", place: selectedPlace.name },
+    }).then(({ data }) => {
+      if (data?.image_url) {
+        setLocationImage(data.image_url);
+      }
+    }).catch(() => {});
   }, [selectedPlace]);
 
   const handlePlaceSelect = (place: PlaceSelection) => {
@@ -71,6 +84,35 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8" onClick={(e) => e.stopPropagation()}>
             <StateSearch onSelect={handlePlaceSelect} />
           </motion.div>
+
+          {/* Location image banner */}
+          <AnimatePresence mode="wait">
+            {locationImage && (
+              <motion.div
+                key={locationImage}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                className="mb-8 rounded-xl overflow-hidden border border-border shadow-lg relative"
+                style={{ maxHeight: 260 }}
+              >
+                <img
+                  src={locationImage}
+                  alt={`View of ${selectedPlace.name}`}
+                  className="w-full h-full object-cover"
+                  style={{ maxHeight: 260 }}
+                  onError={() => setLocationImage(null)}
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                  <p className="text-sm font-medium text-white">
+                    📸 {selectedPlace.name}
+                    {selectedPlace.state && selectedPlace.state !== selectedPlace.name && `, ${selectedPlace.state}`}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {loading && (
             <div className="flex justify-center py-16">
