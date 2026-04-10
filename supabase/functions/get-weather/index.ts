@@ -116,26 +116,38 @@ serve(async (req) => {
         });
       }
 
-      // Try Wikipedia page summary for an image
-      const queries = [`${place} Nigeria`, place];
+      // Try Wikipedia search API first to find the right article title
+      const queries = [place, `${place} Nigeria`, `${place} city`];
       let imageUrl: string | null = null;
 
       for (const q of queries) {
         if (imageUrl) break;
         try {
-          const wikiRes = await fetch(
-            `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`,
+          // Use Wikipedia search to find the best matching article
+          const searchRes = await fetch(
+            `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=3&format=json`,
             { headers: { "User-Agent": "WeatherNG/1.0 (lovable.app)" } }
           );
-          if (wikiRes.ok) {
-            const wikiData = await wikiRes.json();
-            if (wikiData.thumbnail?.source) {
-              // Get a higher-res version by replacing size in URL
-              imageUrl = wikiData.originalimage?.source || wikiData.thumbnail.source;
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            const results = searchData?.query?.search || [];
+            for (const result of results) {
+              if (imageUrl) break;
+              const title = result.title;
+              const summaryRes = await fetch(
+                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+                { headers: { "User-Agent": "WeatherNG/1.0 (lovable.app)" } }
+              );
+              if (summaryRes.ok) {
+                const summaryData = await summaryRes.json();
+                if (summaryData.thumbnail?.source) {
+                  imageUrl = summaryData.originalimage?.source || summaryData.thumbnail.source;
+                }
+              }
             }
           }
         } catch (e) {
-          console.error("Wikipedia fetch error:", e);
+          console.error("Wikipedia search error:", e);
         }
       }
 
